@@ -1,0 +1,85 @@
+---
+title: "Fred Oil Price Forecast"
+author: "Shahid"
+date: "9/22/2019"
+output: html_document
+---
+
+```{r message = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+
+library(readxl)
+library(ggplot2)
+library(lubridate)
+library(forecast)
+library(sqldf)
+
+
+Oil <- read_excel("C:/Users/shahi/Desktop/Sanjay/Oil Prices.xls", 
+    range = "A11:B2000")
+
+colnames(Oil)[colnames(Oil)== "DCOILWTICO"] <- "Price"
+colnames(Oil)[colnames(Oil)== "observation_date"] <- "Date"
+
+Oil$Date <- as.Date(Oil$Date)
+
+str(Oil)
+
+
+
+Oil$Year <- format(as.Date(Oil$Date, "%d/%m/%Y"), "%Y")
+Oil$Month <- format(as.Date(Oil$Date, "%d/%m/%Y"), "%m")
+Oil$Day <- format(as.Date(Oil$Date, "%d/%m/%Y"), "%d")
+
+Oil[Oil$Price != 0, ]
+
+ AggregateOil <- sqldf("Select
+      Year,
+      Month,
+      avg(Price)
+      
+      FROM Oil
+      GROUP BY Month, Year
+      ORDER BY Year")
+na.omit(AggregateOil)
+
+AggregateOil$Year <- NULL
+AggregateOil$Month <- NULL
+
+
+TimeSm <- ts(AggregateOil, frequency = 12, start = c(2014,8 ))
+na.omit(TimeSm)
+
+plot.ts(TimeSm, main = "Timeseries of oil Prices", col = "blue")
+plot(TimeSm, main = "Timeseries of oil Prices", col = "blue")
+
+HoltFor1 <- HoltWinters(na.omit(TimeSm))
+HoltFor2 <- HoltWinters(na.omit(TimeSm), gamma = FALSE)
+HoltFor3 <- HoltWinters(na.omit(TimeSm), beta= FALSE)
+HoltFor4 <- HoltWinters(na.omit(TimeSm), gamma = FALSE, beta= FALSE)
+
+HoltFor1
+HoltFor2
+HoltFor3
+HoltFor4
+
+plot(HoltFor1, main = "Oil holt Winter's Model", xlab = "Years", ylab= "Price", sub = "Source: https://fred.stlouisfed.org/series/DCOILWTICO")
+
+plot(HoltFor2, main = "Oil holt Winter's Model (gamma = FALSE)", xlab = "Years", ylab= "Price", sub = "Source: https://fred.stlouisfed.org/series/DCOILWTICO")
+
+plot(HoltFor3, main = "Oil holt Winter's Model(beta = FALSE)", xlab = "Years", ylab= "Price", sub = "Source: https://fred.stlouisfed.org/series/DCOILWTICO")
+
+plot(HoltFor4, main = "Oil holt Winter's Model (gamma = FALSE, beta = FALSE)", xlab = "Years", ylab= "Price", sub = "Source: https://fred.stlouisfed.org/series/DCOILWTICO")
+
+
+plot(forecast(HoltFor1, 5), main = "Oil Foecast 5 Months", xlab = "Years", ylab= "Price", sub = "Source: https://fred.stlouisfed.org/series/DCOILWTICO")
+plot(forecast(HoltFor2, 5), main = "Oil Foecast 5 Months (gamma = FALSE)", xlab = "Years", ylab= "Price", sub = "Source: https://fred.stlouisfed.org/series/DCOILWTICO")
+plot(forecast(HoltFor3, 5), main = "Oil Foecast 5 Months (beta = FALSE)", xlab = "Years", ylab= "Price", sub = "Source: https://fred.stlouisfed.org/series/DCOILWTICO")
+plot(forecast(HoltFor4, 5), main = "Oil Foecast 5 Months (gamma = FALSE, beta = FALSE)", xlab = "Years", ylab= "Price", sub = "Source: https://fred.stlouisfed.org/series/DCOILWTICO")
+
+
+
+```
+
+
