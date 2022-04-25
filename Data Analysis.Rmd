@@ -1,0 +1,150 @@
+---
+title: "Project3_Abdulaziz_Shahid"
+author: "Shahid Abdulaziz"
+date: "11/15/2020"
+output: word_document
+---
+
+# Problem 1
+
+**Read the dataset in Grain_Refiners.csvPreview the document into R. Name the loaded data Grain_Refiners. And use head() function to show the first 6 rows.**
+
+```{r, echo = FALSE}
+library(readr)
+library(ggplot2)
+library(stats)
+library(sqldf)
+
+Grain_Refiners <- read_csv("C:/Grad School/DSCI 618/Week3/Grain_Refiners.csv")
+withOutlier_Grain_Refiners = Grain_Refiners 
+head(Grain_Refiners,6)
+```
+
+# Problem 2
+
+**Determine which variable is a blocking factor in this experiment and examine Data Graphically using strip charts, box plots, or other charts that can help you check if treatment and block factors affect the grain size.**
+
+```{r,echo =FALSE}
+Grain_Refiners$Furnace <- as.factor(Grain_Refiners$Furnace) #Making variables factory type
+Grain_Refiners$`Stirring Rate` <- as.factor(Grain_Refiners$`Stirring Rate`) #Making variables factory type
+
+stir = ggplot(Grain_Refiners, aes(`Stirring Rate`,y, fill = `Stirring Rate`))+
+  geom_boxplot()+
+  labs(title = 'Stirring Rate',
+       y = 'Grain Size'
+       ) #Creating boxplots
+
+furance = ggplot(Grain_Refiners, aes(Furnace,y, fill = Furnace))+
+  geom_boxplot()+
+  labs(title = 'Stirring Rate',
+       y = 'Grain Size'
+       )
+
+gridExtra::grid.arrange(stir, furance, top = 'Stirring and Furance Affects on Grain Size')
+```
+There seem to be outliers in this data set. I will go ahead and remove these outliers before performing any sort of test due to how sensitive our test are when it comes to outliers. 
+```{r, echo = FALSE}
+remove_outliers <- function(x, na.rm = TRUE, ...) {
+  qnt <- quantile(x, probs=c(.25, .75), na.rm = na.rm, ...)
+  H <- 1.5 * IQR(x, na.rm = na.rm)
+  y <- x
+  y[x < (qnt[1] - H)] <- NA
+  y[x > (qnt[2] + H)] <- NA
+  y
+} #source: https://stackoverflow.com/questions/4787332/how-to-remove-outliers-from-a-dataset
+
+Grain_Refiners$y <- remove_outliers(Grain_Refiners$y) #Removing outliers
+Grain_Refiners <- na.omit(Grain_Refiners) #omiting null values
+```
+
+# Problem 3
+
+**Test the hypothesis that the stirring rate affects grain size. Use α=0.05**
+
+```{r, echo=FALSE}
+aov1 <- aov(y~`Stirring Rate`,Grain_Refiners ) #single anova test
+aov2 <- aov(y~`Stirring Rate`+ Furnace,Grain_Refiners ) #anova test with blocker
+
+summary(aov1)
+summary(aov2)
+```
+
+At a 95% confidence level, we would fail to reject the null hypthoesis meaning that there is not enough evidence to suggest that there is a significant difference amongst the stirring means. 
+
+The block effect is not highly significant either at a 95% confidence level.
+
+# Problem 4 - 6
+
+```{r, echo = FALSE}
+
+plot(aov2 ) #plotting requested graphs
+``` 
+
+
+## Problem 4
+**Construct a normal probability plot of the residuals (Normal Q-Q Plot). What conclusion would you draw about the validity of the Normality assumption?**
+
+There is no sign that there is any non-normality in the data.
+
+## Problem 5
+
+**Prepare a scatter plot of the residuals (Scale-Location plot). What conclusion would you draw about the validity of the Homoscedasticity assumption?**
+
+The residuals do have homoscedasticity because they are  equally distributed among the horizontal line. Anova assumption met. 
+
+## Problem 6
+
+**Plot the residuals versus the predicted tensile strength (Residuals vs Fitted). Comment on the plot.**
+
+The residuals show that there are no relationships between the residuals and the fitted values.
+
+
+
+# Problem 7
+
+**What should the process engineers recommend concerning the choice of stirring rate and furnace for this particular grain refiner if the small grain size is desirable?**
+
+## Taking Out outlier
+
+Since stirring rate and furnace are not signicantly different means for grain size, I do not believe I have any recommendations for them regarding the choice of stirring rate and furnace.
+
+## Leaving Outlier In
+
+If the outlier is a true result and not a data mistake than this would be my analysis of the situation. 
+
+```{r, echo = FALSE}
+withOutlier_Grain_Refiners$`Stirring Rate` <- as.factor(withOutlier_Grain_Refiners$`Stirring Rate`) #Creating my factor classes
+withOutlier_Grain_Refiners$Furnace <- as.factor(withOutlier_Grain_Refiners$Furnace)
+
+aov3 <- aov(y~`Stirring Rate`,withOutlier_Grain_Refiners)
+aov4 <- aov(y~`Stirring Rate`+ Furnace,withOutlier_Grain_Refiners )
+
+summary(aov3) #solo anova
+summary(aov4) #looking at the anova with the bblocking affect
+```
+
+It looks like with leaving the outlier inside the dataset that Furnance becomes significantly different at a 95% confidence level. 
+
+```{r, echo = FALSE}
+results = lsmeans::lsmeans(aov4, "Furnace")
+
+summary(results)
+str(withOutlier_Grain_Refiners) #looking at str of dataset
+Contrasts = list('1v2' = c(1, -1, 0, 0),
+                 '1vs3' = c(1, 0, -1, 0), #setting up my contrasts
+                 '1vs4' = c(1, 0, 0, -1),
+                 '2vs3'  = c(0, 1, -1, 0),
+                 '2vs4' = c(0, 1, 0, -1),
+                 '3vs4' = c(0, 0, 1, -1))
+
+lsmeans::contrast(results, Contrasts) #contrast testing
+```
+
+Furance 1 is signifcantly different from all other groups at a 95% confidence level. 
+
+
+```{r, include = FALSE}
+
+sqldf("select  Furnace, avg(y) from withOutlier_Grain_Refiners group by  Furnace " ) #getting avg grain size by furnance
+```
+Since furnance 1 has a high grain size avg, I would suggest for the engineers to not use furnance 1 for anything that they want small results for. 
