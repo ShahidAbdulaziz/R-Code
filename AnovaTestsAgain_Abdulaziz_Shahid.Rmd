@@ -1,0 +1,106 @@
+---
+title: "Project4"
+author: "Shahid Abdulaziz"
+date: "11/29/2020"
+output:
+  word_document: default
+  html_document: default
+---
+
+# Problem 1
+
+**Read the dataset in Batteries_Life.csvPreview the document into R. Name the loaded data Batteries_Life. And use the head() function to show the first 6 rows.**
+
+```{r, echo = TRUE}
+library(readr)
+library(stats)
+library(ggplot2)
+library(sqldf)
+
+
+
+Batteries_Life <- read_csv("C:/Grad School/DSCI 618/Week4/Batteries_Life.csv") # importing data
+
+head(Batteries_Life,6) # getting the first six rows of the data
+```
+
+# Problem 2
+
+**Conduct the analysis of variance and test hypotheses on the main effects. What conclusions can be drawn using significance level=0.05?**
+
+```{r, echo = TRUE}
+aov1 = aov(Batteries_Life$Life ~Batteries_Life$Brand + Batteries_Life$Device ) #first anova test without interaction
+
+summary(aov1) #anova results
+
+
+```
+
+At a 95% confidence level, we would fail to reject the null hypthoesis for Brand and their Devices because there is evidence to prove there is a difference in battery life for brands with a pe-value of 0.0112 and devices with a p-value of 4.5e-07.
+
+# Problem 3
+
+**Construct an interaction plot.**
+
+```{r, echo = TRUE}
+ggplot(Batteries_Life, #ggplot for interactions 
+       aes(x=Batteries_Life$Device,y=Batteries_Life$Life,
+           color=Batteries_Life$Brand,
+           group=Batteries_Life$Brand,
+           label=Batteries_Life$Life))+
+    geom_line(size=.5)+
+    geom_point(size=1)+
+    geom_text(aes(label=Batteries_Life$Life),hjust=0, vjust=-0.5)+
+    labs(title = "Experiment With Interaction",
+         x = "Devices",
+         y = "Battery Life")
+
+
+```
+
+# Problem 4 
+
+**Test on the interaction between factors. What conclusions can be drawn using significance level=0.05?**
+
+```{r, echo = TRUE}
+aov2 = aov(Batteries_Life$Life ~Batteries_Life$Brand * Batteries_Life$Device ) #second anova test with interaction
+
+summary(aov2) #anova results
+
+
+```
+At a 95% confidence level, we would fail to reject the null hypthoesis for the interaction  between Brand and their Devices because there is evidence to prove there is a difference in battery life a  p-value of 1.13e-05 .
+
+# Problem 5
+
+**Prepare appropriate residual plots and comment on the model’s adequacy.**
+
+```{r, echo = TRUE}
+plot(aov2) #plotting the risduals of the second anova test
+
+```
+
+## QQ Plot
+The residuals are normally distributed  because they are around the line of best fit
+
+## Residuals vs Fitted
+
+The residuals  do not have a linear trend because they are spread out around the horizontal line
+
+## Scale-Loaction
+
+The residuals do have homoscedasticity because they are  equally distributed among the horizontal line.  
+
+
+
+# Problem 6
+
+**Which brand of batteries would you recommend?**
+
+```{r, echo = TRUE}
+sqldf("select  brand, avg(life) from Batteries_Life group by  brand " ) #looking at the avg 
+```
+
+I would suggest going with Brand B since the overall avg life of the batteries is higher than the Brand A of the batteries.
+
+(I do not know if the question what looking for just the overall brand of the individual devices within the brands)
