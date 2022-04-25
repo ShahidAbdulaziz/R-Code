@@ -1,0 +1,179 @@
+---
+title: "Assignment 5"
+author: "Shahid"
+date: "11/8/2019"
+output: html_document
+---
+
+
+
+Special Note: This assigment is something I created that will be given to a college 300 level business course. This course is an introduction to business data analytics using R. This is the answer key below.
+
+
+
+
+Your manager wants the last four weeks of sales data from the PA region. Additionally, your manager wants to see three aggregations.
+Aggregations Wanted:
+1:  The Entire amount of sales for the city of Harrisburg in date order. 
+2: The total sales for each product by every city
+3: The entire sales for city in date order except for the city of Lancaster. 
+ The data however cannot fit into an excel spreadsheet because the rows are passed the maximum amount allowed in Excel. Additionally, each week of data is outputted in a separate CSV file. You decide using R would be most appropriate in combining the datasets.  The outline of your tasks is below, make sure to complete each one.
+
+1:   Develop a method to read the csv files from a folder into a list in R.
+ 
+2: Take the list of files within R and combine them together into one data frame. Note, there are many different methods to do this.
+
+3: Ensure the files have combined successfully. 
+
+4:  Clean the Data
+ 
+5:  Perform aggregations 
+
+Students, remember that there is always more than one way to skin a cat. 
+
+```{r, message= FALSE}
+library(gtools)
+library(lubridate)
+library(tidyverse)
+library(dplyr)
+library(sqldf)
+library(plyr)
+
+setwd("C:/Users/shahi/Desktop/Sanjay/Assignment5")
+FileList <- list.files(path = choose.dir("C:/Users/shahi/Desktop/Sanjay/Assignment5"), pattern = "*.csv")
+
+FileList
+
+
+FL <- lapply(FileList, read.csv)
+
+FL
+
+
+lapply(FileList, cbind, ID = c(" "))
+
+newlist <- Map(cbind, FL, ID = (1:length(FL)))
+
+Combined <- do.call(smartbind, newlist)
+
+Combined
+
+
+ Rename <-function(x,ColNames){
+      names(x) <- ColNames
+      return(x)
+ }
+ 
+ 
+Colnames1 <- c("Date", "City", "Product", "Sales", "ID")
+ColnamesFixed <- lapply(newlist ,  Rename , Colnames1) 
+ColnamesFixed 
+
+EntireCombine <- do.call(rbind, ColnamesFixed )
+
+EntireCombine 
+str(EntireCombine )
+
+as.data.frame(EntireCombine)
+
+EntireCombine$Date <- as.Date(EntireCombine$Date)
+
+parse <- parse_number(EntireCombine$Sales)
+
+
+EntireCombine$Sales <- sapply(EntireCombine$Sales, parse_number)
+
+EntireCombine$City <- as.character(EntireCombine$City)
+str(EntireCombine)
+
+
+EntireCombine$City <- revalue(EntireCombine$City, c("Harrisburgh "="Harrisburg"))
+EntireCombine$City <- revalue(EntireCombine$City, c("Pittsburgh "="Pittsburg"))
+
+EntireCombine
+
+Harrisburg_Only <- sqldf("SELECT Date, City, sum(Sales) AS Sales
+       FROM EntireCombine
+       WHERE City LIKE 'Harris%'
+       GROUP BY Date, City
+      ")
+
+Harrisburg_Only 
+
+
+Harrisburg_Only_By_Product <- sqldf("SELECT Date, City, sum(Sales) AS Sales,Product
+       FROM EntireCombine
+       WHERE City LIKE 'Harris%'
+       GROUP BY Date, City, Product
+      ")
+Harrisburg_Only_By_Product
+
+
+City_By_Product <- sqldf("
+SELECT City, Product, sum(Sales) as Sales
+FROM EntireCombine
+       GROUP BY City, Product
+       ORDER BY Sales ASC
+      ")
+
+City_By_Product 
+
+By_Date_City <- sqldf("SELECT Date, City, sum(Sales) AS Sales
+                        FROM EntireCombine
+                        WHERE CITY NOT LIKE ('Lan%')
+                        GROUP BY DATE, CITY
+                      ")
+By_Date_City
+```
+
+
+```{r}
+library(ggplot2)
+
+
+
+ggplot(Harrisburg_Only, aes(Date, Sales))+
+   geom_line( colour = "red")+
+   labs(title = "Harrisburg Sales",
+        subtitle = "Jan 13th - Feb 3rd"
+)
+
+ggplot(Harrisburg_Only, aes(Date, Sales))+
+   geom_bar(stat = "identity", position =  "dodge")+
+   labs(title = "Harrisburg Sales",
+        subtitle = "Jan 13th - Feb 3rd"
+)
+
+ggplot(Harrisburg_Only_By_Product, aes(Date, Sales, fill = Product))+
+   geom_bar(stat = "identity", position =  "dodge")+
+   labs(title = "Harrisburg Sales By Product",
+        subtitle = "Jan 13th - Feb 3rd"
+)
+
+
+
+ggplot(By_Date_City, aes(Date, Sales, fill = City))+ 
+   geom_line(aes(colour = City))+
+   labs(title = "All Cities Total Sales",
+        subtitle = "Jan 13th - Feb 3rd"
+        )
+
+
+ggplot(By_Date_City, aes(Date, Sales, fill = City)) +
+   geom_bar( stat = "identity", position =  "dodge")+
+   labs(title = "All Cities Total Sales",
+        subtitle = "Jan 13th - Feb 3rd"
+        )
+
+ggplot(EntireCombine, aes(Date, Sales, fill = Product ))+
+      geom_bar( stat = "identity", position =  "dodge")+
+   labs(title = "All Cities Total Sales By Product",
+        subtitle = "Jan 13th - Feb 3rd"
+        )
+
+
+
+
+
+
+````
