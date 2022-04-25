@@ -1,0 +1,282 @@
+---
+title: "Assigment 4"
+author: "Shahid Abdulaziz"
+date: "10/19/2019"
+output: html_document
+---
+
+
+
+## EU Exchange Rate Timeseries ( 1999-01-01 to 2019- 09-01)
+
+```{r, message=FALSE}
+library(ggplot2)
+library(readxl)
+library(lubridate)
+library(sqldf)
+library(gridExtra)
+
+ Euro_US <- read_excel("C:/Users/shahi/Desktop/Sanjay/Euro US exchange.xls", 
+ range = "A11:B260")
+ 
+ 
+
+colnames( Euro_US)[colnames( Euro_US)== "observation_date"] <- "Date"
+
+str(Euro_US)
+
+Euro_US$Date <- as.Date(Euro_US$Date)
+
+ggplot(data = Euro_US) + aes(x = Date, y = EXUSEU) +
+      geom_rect(aes(xmin = ymd('2001-03-01'),
+                xmax = ymd('2001-11-01'),
+                ymin= -Inf,
+                ymax = Inf), fill = 'grey', alpha = .05)+
+   geom_rect(aes(xmin = ymd('2007-12-01'),
+                xmax = ymd('2009-06-01'),
+                ymin= -Inf,
+                ymax = Inf), fill = 'grey', alpha = .05) +
+geom_line( color = "blue") +
+  labs(
+    title = " FRED U.S/ Euro Exchange Rate",
+    subtitle = "Source: https://fred.stlouisfed.org/series/EXUSEU",
+    caption =  " Bar lines are U.S Recessions",
+    x = "Date Monthly",
+    y = "Exchange Rate"
+  )
+
+Euro_US$Euro_Growth <-0
+
+for (i in 2:length(Euro_US$EXUSEU))
+{
+ Euro_US$Euro_Growth[i] <-((Euro_US$EXUSEU[i]- Euro_US$EXUSEU[(i-1)])/ Euro_US$EXUSEU[(i-1)])*100
+  
+}
+
+ggplot(data = Euro_US) + aes(x = Date, y = Euro_Growth) +
+      geom_rect(aes(xmin = ymd('2001-03-01'),
+                xmax = ymd('2001-11-01'),
+                ymin= -Inf,
+                ymax = Inf), fill = 'grey', alpha = .05)+
+   geom_rect(aes(xmin = ymd('2007-12-01'),
+                xmax = ymd('2009-06-01'),
+                ymin= -Inf,
+                ymax = Inf), fill = 'grey', alpha = .05) +
+geom_line( color = "blue") +
+  labs(
+    title = " Euro to U.S Dollar Growth Rate",
+    subtitle = "Source: https://fred.stlouisfed.org/series/EXUSEU",
+    caption =  " Bar lines are U.S Recessions",
+    x = "Date Monthly",
+    y = "Growth Rate"
+  )
+
+
+```
+
+
+
+## Canada Exchange Rate Time Series (1971-01-01 to 2019-09-01)
+
+```{r , message=FALSE}
+
+Cananda_US <- read_excel("C:/Users/shahi/Desktop/Sanjay/Cananda US Exchange Rate.xls", 
+    range = "A11:B596")
+
+colnames(Cananda_US)[colnames( Cananda_US)== "observation_date"] <- "Date"
+Cananda_US$Date <- as.Date(Cananda_US$Date)
+
+
+ggplot(data = Cananda_US ) + aes(x = Date, y = EXCAUS) +
+  geom_rect(aes(xmin = ymd('1973-11-01'),
+                xmax = ymd('1975-03-01'),
+                ymin= -Inf,
+                ymax = Inf), fill = 'grey', alpha = .05)+
+    geom_rect(aes(xmin = ymd('1980-02-01'),
+                xmax = ymd('1980-07-01'),
+                ymin= -Inf,
+                ymax = Inf), fill = 'grey', alpha = .05)+
+    geom_rect(aes(xmin = ymd('1981-07-01'),
+                xmax = ymd('1982-11-01'),
+                ymin= -Inf,
+                ymax = Inf), fill = 'grey', alpha = .05)+
+    geom_rect(aes(xmin = ymd('1990-07-01'),
+                xmax = ymd('1991-03-01'),
+                ymin= -Inf,
+                ymax = Inf), fill = 'grey', alpha = .05)+
+    geom_rect(aes(xmin = ymd('2001-03-01'),
+                xmax = ymd('2001-11-01'),
+                ymin= -Inf,
+                ymax = Inf), fill = 'grey', alpha = .05)+
+   geom_rect(aes(xmin = ymd('2007-12-01'),
+                xmax = ymd('2009-06-01'),
+                ymin= -Inf,
+                ymax = Inf), fill = 'grey', alpha = .05) +
+geom_line( color = "blue") +
+  labs(
+    title = " FRED U.S/ Canada Exchange Rate",
+    subtitle = "Source: https://fred.stlouisfed.org/series/EXCAUS",
+    caption =  " Bar lines are U.S Recessions",
+    x = "Date Monthly",
+    y = "Exchange Rate"
+  )
+
+
+
+```
+
+## Japan Exchange Rate Time Series (1971-01-01 to 2019-09-01)
+```{r ,message=FALSE}
+
+Japan_US <- read_excel("C:/Users/shahi/Desktop/Sanjay/Japan US echange rates.xls", 
+    range = "A11:B596")
+
+colnames(Japan_US)[colnames(Japan_US)== "observation_date"] <- "Date"
+
+Japan_US$Date <- as.Date(Japan_US$Date)
+
+
+ggplot(data = Japan_US ) + aes(x = Date, y = EXJPUS) +
+   geom_rect(aes(xmin = ymd('1973-11-01'),
+                xmax = ymd('1975-03-01'),
+                ymin= -Inf,
+                ymax = Inf), fill = 'grey', alpha = .05)+
+    geom_rect(aes(xmin = ymd('1980-02-01'),
+                xmax = ymd('1980-07-01'),
+                ymin= -Inf,
+                ymax = Inf), fill = 'grey', alpha = .05)+
+    geom_rect(aes(xmin = ymd('1981-07-01'),
+                xmax = ymd('1982-11-01'),
+                ymin= -Inf,
+                ymax = Inf), fill = 'grey', alpha = .05)+
+    geom_rect(aes(xmin = ymd('1990-07-01'),
+                xmax = ymd('1991-03-01'),
+                ymin= -Inf,
+                ymax = Inf), fill = 'grey', alpha = .05)+
+    geom_rect(aes(xmin = ymd('2001-03-01'),
+                xmax = ymd('2001-11-01'),
+                ymin= -Inf,
+                ymax = Inf), fill = 'grey', alpha = .05)+
+   geom_rect(aes(xmin = ymd('2007-12-01'),
+                xmax = ymd('2009-06-01'),
+                ymin= -Inf,
+                ymax = Inf), fill = 'grey', alpha = .05) +
+geom_line( color = "blue") +
+  labs(
+    title = " FRED Japan/ U.S Exchange Rate",
+    subtitle = "Source: https://fred.stlouisfed.org/series/EXJPUS",
+    caption =  " Bar lines are U.S Recessions",
+    x = "Date Monthly",
+    y = "Exchange Rate (Yen)"
+  )
+
+```
+
+## Canada & Japan Appreciation/depreciation to U.S Dollar 
+```{r ,message=FALSE}
+
+ Canada_Japan <- sqldf("SELECT a.Date, a.EXCAUS AS Canada, (1/ b.EXJPUS
+ ) as Japan
+      FROM Cananda_US a LEFT OUTER JOIN  Japan_US b
+      ON a.Date = b.Date
+      "
+      )
+
+nCanada <- length(Canada_Japan$Canada)
+VAT <- numeric(nCanada)
+
+
+
+Canada_Japan$Canada_Growth<-0
+
+for (i in 2:length(Canada_Japan$Canada))
+{
+  Canada_Japan$Canada_Growth[i] <-(( Canada_Japan$Canada[i]- Canada_Japan$Canada[(i-1)])/ Canada_Japan$Canada[(i-1)])*100
+  
+}
+
+
+
+Canada_Japan$Japan_Growth<-0
+
+for (i in 2:length(Canada_Japan$Japan))
+{
+  Canada_Japan$Japan_Growth[i] <-(( Canada_Japan$Japan[i]- Canada_Japan$Japan[(i-1)])/ Canada_Japan$Japan[(i-1)])*100
+  
+  }
+
+Canada <- ggplot( data =  Canada_Japan, aes( x = Date, y = Canada_Growth)) +
+  geom_rect(aes(xmin = ymd('1973-11-01'),
+                xmax = ymd('1975-03-01'),
+                ymin= -Inf,
+                ymax = Inf), fill = 'grey', alpha = .05)+
+    geom_rect(aes(xmin = ymd('1980-02-01'),
+                xmax = ymd('1980-07-01'),
+                ymin= -Inf,
+                ymax = Inf), fill = 'grey', alpha = .05)+
+    geom_rect(aes(xmin = ymd('1981-07-01'),
+                xmax = ymd('1982-11-01'),
+                ymin= -Inf,
+                ymax = Inf), fill = 'grey', alpha = .05)+
+    geom_rect(aes(xmin = ymd('1990-07-01'),
+                xmax = ymd('1991-03-01'),
+                ymin= -Inf,
+                ymax = Inf), fill = 'grey', alpha = .05)+
+    geom_rect(aes(xmin = ymd('2001-03-01'),
+                xmax = ymd('2001-11-01'),
+                ymin= -Inf,
+                ymax = Inf), fill = 'grey', alpha = .05)+
+   geom_rect(aes(xmin = ymd('2007-12-01'),
+                xmax = ymd('2009-06-01'),
+                ymin= -Inf,
+                ymax = Inf), fill = 'grey', alpha = .05) +
+  geom_line(colour= "blue") +
+  labs(
+    title = "Cananda Growth rate to U.S Dollar",
+    subtitle = "Data Source: https://fred.stlouisfed.org/series/EXCAUS",
+    caption =  " Bar lines are U.S Recessions",
+    x = "Date Monthly",
+    y = "CAD Growth Rate "
+  )
+Canada 
+Japan <- ggplot( data =  Canada_Japan, aes( x = Date, y = Japan_Growth)) +
+  geom_rect(aes(xmin = ymd('1973-11-01'),
+                xmax = ymd('1975-03-01'),
+                ymin= -Inf,
+                ymax = Inf), fill = 'grey', alpha = .05)+
+    geom_rect(aes(xmin = ymd('1980-02-01'),
+                xmax = ymd('1980-07-01'),
+                ymin= -Inf,
+                ymax = Inf), fill = 'grey', alpha = .05)+
+    geom_rect(aes(xmin = ymd('1981-07-01'),
+                xmax = ymd('1982-11-01'),
+                ymin= -Inf,
+                ymax = Inf), fill = 'grey', alpha = .05)+
+    geom_rect(aes(xmin = ymd('1990-07-01'),
+                xmax = ymd('1991-03-01'),
+                ymin= -Inf,
+                ymax = Inf), fill = 'grey', alpha = .05)+
+    geom_rect(aes(xmin = ymd('2001-03-01'),
+                xmax = ymd('2001-11-01'),
+                ymin= -Inf,
+                ymax = Inf), fill = 'grey', alpha = .05)+
+   geom_rect(aes(xmin = ymd('2007-12-01'),
+                xmax = ymd('2009-06-01'),
+                ymin= -Inf,
+                ymax = Inf), fill = 'grey', alpha = .05) +
+  geom_line(colour= "blue") +
+  labs(
+    title = "Japan's Yen Growth rate to U.S Dollar",
+    subtitle = "Data Source: https://fred.stlouisfed.org/series/EXJPUS",
+    caption =  " Bar lines are U.S Recessions",
+    x = "Date Monthly",
+    y = "Yen Growth Rate "
+  )
+
+Japan 
+
+grid.arrange(Japan, Canada)
+
+
+
+```
