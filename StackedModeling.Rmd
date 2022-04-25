@@ -1,0 +1,487 @@
+---
+title: "Final Project"
+author: "Shahid Abdulaziz"
+date: "11/1/2020"
+output: word_document
+---
+
+
+
+I apologize for the project not being exactly what I had prior. I had to redo everything last minute do to the version I was working on throughout the semester getting deleted. Spent the entire day on Sunday redoing my prior work/ improving my model. 
+
+
+```{r import data and packages, include=FALSE}
+library(readr)
+library(sqldf)
+library(caret)
+library(tree)
+library(ROSE)
+library(nnet)
+library(fastDummies)
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(CARS)
+library(randomForest)
+library(e1071)
+library(car)
+library(kableExtra)
+
+options(scipen=999)
+
+Train1 <- read_csv("C:/Grad School/DSCI 508/Final/Shahid -TRAIN.csv")
+    
+
+
+
+
+
+```
+
+Above I am reading in the data needed for this model and importing packages I used throughtout the final.
+
+```{r cleaning data , include=FALSE}
+
+str(Train1) #Discovered a numeric column has character values in it
+
+sum(is.na(Train1)) # Checking for NA's
+which(is.na(as.numeric(as.character(Train1$TotalDues)))) # Finding the character values in a numeric column and making them NA's
+
+Train1$TotalDues <- as.numeric(as.character(Train1$TotalDues))
+
+Train1[sapply(Train1, is.character)] <- lapply(Train1[sapply(Train1, is.character)], 
+                                       as.factor) # converting all character  type columns to factor class
+Train1$Management <- as.factor(Train1$Management) # I missed the 0/1 columns in the above conversion
+str(Train1) #Checking to make sure all the class structures are correct now
+
+prop.table(table(Train1$LeftUnion)) #Seeing a class imbalance 
+
+Train1 <- na.omit(Train1) #Getting rid of nulls
+Train1$ID <- NULL #Removing not needed column
+
+Train1$YearsInUnion = round((Train1$MonthsInUnion/12))
+Train1$MonthlyDues <- scale(Train1$MonthlyDues)
+Train1$TotalDues<- scale(Train1$TotalDues)
+Train1$MonthsInUnion <- scale(Train1$MonthsInUnion)
+
+Train1Dummy = dummy_cols(Train1, remove_first_dummy = TRUE, remove_selected_columns = TRUE) #removes duplicated dummy columns 
+
+names(Train1Dummy$`PaymentMethod_Credit card (automatic)`) =    Train1Dummy %>% #an incorrect colname was created
+                                                            rename( 'PaymentMethod_Credit_card' = `PaymentMethod_Credit card (automatic)` )
+
+names(Train1Dummy)= make.names(names(Train1Dummy), unique = TRUE) #ensuring unique names
+
+
+
+remove_outliers <- function(x, na.rm = TRUE, ...) {
+  qnt <- quantile(x, probs=c(.25, .75), na.rm = na.rm, ...)
+  H <- 1.5 * IQR(x, na.rm = na.rm)
+  y <- x
+  y[x < (qnt[1] - H)] <- NA
+  y[x > (qnt[2] + H)] <- NA
+  y
+} # Source: https://stackoverflow.com/questions/4787332/how-to-remove-outliers-from-a-dataset
+
+
+Train1Dummy$LeftUnion_Yes = as.factor(Train1Dummy$LeftUnion_Yes) #making predictor a factor variable 
+
+Train1Dummy$NewMember = ifelse(Train1Dummy$YearsInUnion > mean(Train1Dummy$YearsInUnion),0,1) # creating new feature
+
+```
+
+
+The above code is performing data cleaning on the data set. 
+
+
+```{r data exploration, echo = TRUE}
+
+MonthlyDuesBefore = ggplot(Train1Dummy, aes(as.factor(LeftUnion_Yes),MonthlyDues))+
+  geom_boxplot()+
+  labs(x = "Left Union",
+       title = "Boxplot Before Removing Outliers: Monthly Dues")# Discovered outliers 
+
+TotalDuesBefore = ggplot(Train1Dummy, aes(as.factor(LeftUnion_Yes),TotalDues))+
+  geom_boxplot()+
+  labs(x = "Left Union",
+       title = "Boxplot Before Removing Outliers: Total Dues")# Discovered outliers 
+
+
+
+Train1Dummy$MonthlyDues = remove_outliers(Train1Dummy$MonthlyDues)
+Train1Dummy$TotalDues = remove_outliers(Train1Dummy$TotalDues)
+
+Train1Dummy = na.omit(Train1Dummy)
+
+prop.table(table(Train1Dummy$LeftUnion_Yes))
+
+
+MonthlyDuesAfter = ggplot(Train1Dummy, aes(as.factor(LeftUnion_Yes),MonthlyDues))+
+  geom_boxplot() +
+  labs(x = "Left Union",
+       title = "Boxplot After Removing Outliers: Monthly Dues")#After removing outliers
+
+TotalDuesAfter= ggplot(Train1Dummy, aes(as.factor(LeftUnion_Yes),TotalDues))+
+  geom_boxplot()+
+  labs(x = "Left Union",
+       title = "Boxplot After Removing Outliers: Total Dues")# Discovered outliers 
+
+
+ScatterTotal = ggplot(Train1Dummy )+
+  geom_point(aes(MonthsInUnion,TotalDues, colour =LeftUnion_Yes))+
+  geom_smooth(aes(MonthsInUnion,TotalDues))+
+  labs(
+       title =  "Total Dues: Months In Union")
+
+ScatterMonthly =  ggplot(Train1Dummy )+
+  geom_point(aes(MonthsInUnion,MonthlyDues, colour =LeftUnion_Yes))+
+  geom_smooth(aes(MonthsInUnion,MonthlyDues))+
+  labs(
+       title = "Monthly Dues: Months In Union")
+
+ScatterMonthlyTotal =  ggplot(Train1Dummy )+
+  geom_point(aes(MonthlyDues,TotalDues, colour =LeftUnion_Yes))+
+  geom_smooth(aes(Train1Dummy$MonthlyDues,Train1Dummy$TotalDues))+
+  labs(
+       title = "Monthly Dues: Total Dues ")
+
+BarYearsMonthly =  ggplot(Train1Dummy,aes(as.factor(YearsInUnion),MonthlyDues, fill = LeftUnion_Yes) )+
+ geom_bar(stat="identity")+
+  labs(
+       title = "Monthly Dues: Years In Union ",
+       x = "Years In Union")
+
+BarYearsTotal =  ggplot(Train1Dummy,aes(as.factor(YearsInUnion),TotalDues, fill = LeftUnion_Yes) )+
+ geom_bar(stat="identity")+
+  labs(
+       title = "Total Dues: Total Dues ",
+       x = "Years In Union")
+
+BarNewMembersTotal =  ggplot(Train1Dummy,aes(as.factor(NewMember),TotalDues, fill = LeftUnion_Yes) )+
+ geom_bar(stat="identity")+
+  labs(
+       title = "Total Dues: New Members ",
+       x = "New Members")
+
+BarYearsTotal =  ggplot(Train1Dummy,aes(as.factor(NewMember),MonthlyDues, fill = LeftUnion_Yes) )+
+ geom_bar(stat="identity")+
+  labs(
+       title = "Total Dues: New Members ",
+       x = "New Members")
+
+
+BarGenderMale =  ggplot(Train1Dummy,aes(as.factor(gender_Male),MonthlyDues, fill = LeftUnion_Yes) )+
+ geom_bar(stat="identity")+
+  labs(
+       title = "Total Dues: Males ",
+       x = "Gender Male")
+
+BarUSCitizen = ggplot(Train1Dummy,aes(as.factor(USAcitizen_Yes),MonthlyDues, fill = LeftUnion_Yes) )+
+ geom_bar(stat="identity")+
+  labs(
+       title = "Total Dues: US Citizen ",
+       x = "US Citizen")
+
+BarEducation = ggplot(Train1Dummy,aes(as.factor(ContinuingEd_Yes),MonthlyDues, fill = LeftUnion_Yes) )+
+ geom_bar(stat="identity")+
+  labs(
+       title = "Total Dues:Continuing Education ",
+       x = "Continuing Education")
+
+
+
+grid.arrange(MonthlyDuesBefore,MonthlyDuesAfter)
+grid.arrange(TotalDuesBefore,TotalDuesAfter)
+grid.arrange(ScatterTotal,ScatterMonthly,ScatterMonthlyTotal, nrow = 2)
+grid.arrange(BarYearsTotal ,BarNewMembersTotal,BarYearsTotal, nrow = 2)
+grid.arrange(BarGenderMale  ,BarUSCitizen ,BarEducation , nrow = 2)
+```
+
+
+
+```{r model building train, echo = T}
+set.seed(3)
+
+
+SeperateData <- createDataPartition (Train1Dummy$LeftUnion_Yes, times=1, p=.8, list=FALSE) #breaking data up in test sets
+
+Train <- Train1Dummy[SeperateData,] #Training set
+Test <- Train1Dummy[-SeperateData,] #Test Set
+
+
+
+Train_Under <- ovun.sample(LeftUnion_Yes ~. , data = Train1Dummy, p=.5, method = "under" )$data #dealing with class imbalance
+
+prop.table(table(Train_Under$LeftUnion_Yes))
+
+fitControl <- trainControl( # making my cross validation sets
+  method = "cv",
+  number = 10,
+savePredictions = 'final',
+classProbs = T)
+
+
+
+
+
+
+glmModel = glm(LeftUnion_Yes~., data = Train_Under, family = binomial)
+
+
+rfModel = randomForest(LeftUnion_Yes~., data = Train_Under, importance = TRUE, trControl = fitControl )
+
+nnModel = nnet(LeftUnion_Yes~. , data = Train_Under, size = 10)  
+
+
+treeBagModel = train(LeftUnion_Yes~., data = Train_Under, method="treebag", 
+                 trControl = trainControl(method="cv", number=10), 
+                 preProcess=c("center", "scale")) #historically this type of model has done amazing for me for classification problems
+
+svmModel = svm(LeftUnion_Yes~., data = Train_Under,kernel="radial", ranges=list(cost=10^(-1:2), gamma=c(.5,1,2)), probability =T)
+
+treeModel= tree(LeftUnion_Yes~., data = Train_Under)
+
+
+```
+
+The above code is creating the models off of the training data sets.
+
+
+```{r Predicting, echo = TRUE}
+set.seed(3)
+
+
+#Below, i am making predictions on the test set
+glmModelPred = predict(glmModel, Test, type = 'response') 
+glmModelPredAct =  ifelse(glmModelPred >= .5, '1' ,'0')
+
+rfModelPred = predict(rfModel, Test, type = 'prob')[,2]
+rfModelPredAct = as.factor(ifelse(rfModelPred >= .5, '1', '0'))
+
+
+nnModelPred = predict(nnModel, Test )
+nnModelPredAct =  ifelse(nnModelPred >= .5, '1' ,'0')
+
+
+
+treeBagModelPred = predict(treeBagModel, Test, type = "prob")[,2]
+treeBagModelPredAct = as.factor(ifelse(treeBagModelPred  >= .5, '1' ,'0'))
+
+svmModelPredAct = predict(svmModel, Test,  probability=TRUE)
+svmModelPred = attr(svmModelPredAct, "probabilities")[,2]
+
+treeModelPred = predict(treeModel, Test)[,2]
+treeModelPredAct =  ifelse(treeModelPred >= .5, '1' ,'0')
+
+
+glmCon = confusionMatrix(as.factor(glmModelPredAct), as.factor(Test$LeftUnion_Yes))
+rfModelCon = confusionMatrix(rfModelPredAct, as.factor(Test$LeftUnion_Yes))
+nnModelCon = confusionMatrix(as.factor(nnModelPredAct), as.factor(Test$LeftUnion_Yes))
+treeBagCon = confusionMatrix(treeBagModelPredAct, as.factor(Test$LeftUnion_Yes))
+svmModelPredCon = confusionMatrix(svmModelPredAct, as.factor(Test$LeftUnion_Yes))
+treeModelPredCon = confusionMatrix(as.factor(treeModelPredAct), as.factor(Test$LeftUnion_Yes))
+
+
+rownamesdf = c("Logistic","Random Forest" ,"Neural","TreeBag", "SVM", "Decision Tree")
+conAccur = rbind(glmCon$overall[1], 
+                rfModelCon$overall[1],
+                nnModelCon$overall[1], 
+                treeBagCon$overall[1],
+                svmModelPredCon$overall[1],
+                treeModelPredCon$overall[1]) 
+
+beforeEnsembleDf = as.data.frame(cbind("Models" = rownamesdf, round(conAccur*100,2)))
+
+```
+The code above is testing the models on the test data set as well as seeing what the average prob output would be with averaging the models output.
+
+```{r Ensembly Stacking, echo = T}
+
+
+EnsemblyAvgOutput = ifelse(
+  
+                            (
+                           (glmModelPred *.10) +
+                           (rfModelPred *.25) + 
+                           (nnModelPred *.25) +
+                           (treeBagModelPred *.15) +
+                           (svmModelPred *.15)+ 
+                           (treeModelPred*.05) 
+                            )
+                     >= .5, 1,0)
+
+
+
+
+BeforeRetuneEnsemble = confusionMatrix(as.factor(EnsemblyAvgOutput),Test$LeftUnion_Yes)
+
+BeforeRetuneEnsemble
+
+
+```
+
+My avg model output was extremely good in comparison to each individual model. That being said, I decided to retrain the models with the avg output as a feature. This is called Stacked Modeling.
+
+```{r creating embel model, echo = T}
+set.seed(3)
+knitr::opts_chunk$set(echo = FALSE)
+
+#The below code is retraining my model with the predictors as a feature 
+
+#################Training now ######################
+glmModelPredTrain = predict(glmModel, Train_Under, type = 'response') 
+glmModelPredActTrain =  ifelse(glmModelPred >= .5, '1' ,'0')
+
+rfModelPredTrain = predict(rfModel,Train_Under, type = 'prob')[,2]
+rfModelPredActTrain = as.factor(ifelse(rfModelPred >= .5, '1', '0'))
+
+
+nnModelPredTrain = predict(nnModel,Train_Under )
+nnModelPredActTrain =  ifelse(nnModelPred >= .5, '1' ,'0')
+
+
+
+treeBagModelPredTrain = predict(treeBagModel, Train_Under, type = "prob")[,2]
+treeBagModelPredActTrain = as.factor(ifelse(treeBagModelPred  >= .5, '1' ,'0'))
+
+svmModelPredActTrain = predict(svmModel,Train_Under,  probability=TRUE)
+svmModelPredTrain = attr(svmModelPredAct, "probabilities")[,2]
+
+treeModelPredTrain = predict(treeModel,Train_Under)[,2]
+treeModelPredActTrain =  ifelse(treeModelPred >= .5, '1' ,'0')
+
+
+EnsemblyAvgOutputTrain  = ifelse(
+  
+                            (
+                           (glmModelPredTrain  *.10) +
+                           (rfModelPredTrain  *.25) + 
+                           (nnModelPredTrain  *.25) +
+                           (treeBagModelPredTrain  *.15) +
+                           (svmModelPredTrain  *.15)+ 
+                           (treeModelPredTrain *.05) 
+                            )
+                     >= .5, 1,0)
+
+
+Train_Under_EmB = Train_Under #Making a save checkpoint
+
+Train_Under_EmB$EnsemblyAvgOutput = EnsemblyAvgOutputTrain # placing the training output in my new train data set as a feature 
+
+
+
+
+glmModelEnsemble = glm(LeftUnion_Yes~., data = Train_Under_EmB, family = binomial) #retraining my models
+rfModelEnsemble = randomForest(LeftUnion_Yes~., data = Train_Under_EmB, importance = TRUE, trControl = fitControl)
+nnModelEnsemble = nnet(LeftUnion_Yes~. , data = Train_Under_EmB, size = 10) 
+treeBagModelEnsemble = train(LeftUnion_Yes~., data =  Train_Under_EmB, method="treebag", 
+                 trControl = trainControl(method="cv", number=10), 
+                 preProcess=c("center", "scale"))
+
+svmModelEnsemble = svm(LeftUnion_Yes~., data =  Train_Under_EmB,kernel="radial", ranges=list(cost=10^(-1:2), gamma=c(.5,1,2)), probability =T)
+
+treeModelEnsemble = tree(LeftUnion_Yes~., data =  Train_Under_EmB)
+
+
+
+
+#################Test output now ######################
+
+
+
+
+EnsemblyAvgOutputAct = 
+  
+                            (
+                           (glmModelPred *.10) +
+                           (rfModelPred *.25) + 
+                           (nnModelPred *.25) +
+                           (treeBagModelPred *.15) +
+                           (svmModelPred *.15)+ 
+                           (treeModelPred*.05) 
+                            ) 
+                     
+
+
+EnsemblyTest = Test # Creating checkpoint without overiding a dataset
+EnsemblyTest$EnsemblyAvgOutput = EnsemblyAvgOutputAct #taking the predictive outputs from the first run through and placing it as a feature in my test set
+
+
+
+
+
+
+glmEnsemblePred  = predict(glmModelEnsemble,EnsemblyTest, type = 'response')
+glmEnsemblePredAct = as.factor(ifelse(glmEnsemblePred >= .5, 1 ,0))
+
+rfEnsemblePred = predict(rfModelEnsemble,EnsemblyTest, type = 'prob')[,2]
+rfEnsemblePredAct = as.factor(ifelse(rfEnsemblePred >= .5, '1', '0'))
+
+nnEnsemblePred  = predict(nnModelEnsemble,EnsemblyTest)
+nnEnsemblePredAct =  as.factor(ifelse(nnEnsemblePred  >= .5, '1' ,'0'))
+
+
+treeBagEnsemblePred = predict(treeBagModelEnsemble,EnsemblyTest, type = "prob")[,2]
+treeBagEnsemblePredAct = as.factor(ifelse(treeBagEnsemblePred  >= .5, '1' ,'0'))
+
+svmEnsemblePredAct = predict(svmModelEnsemble ,EnsemblyTest,  probability=TRUE)
+svmEnsemblePred = attr(svmEnsemblePredAct, "probabilities")[,2]
+
+treeEnsemblePred = predict(treeModelEnsemble, EnsemblyTest)[,2]
+treeEnsemblePredAct =  ifelse(treeEnsemblePred >= .5, '1' ,'0')
+
+#Individual confusion matrixs below
+glmConEnsemble = confusionMatrix(glmEnsemblePredAct, EnsemblyTest$LeftUnion_Yes)
+rfModelConEnsemble = confusionMatrix(rfEnsemblePredAct,EnsemblyTest$LeftUnion_Yes)
+nnModelConEnsemble = confusionMatrix(as.factor(nnEnsemblePredAct),EnsemblyTest$LeftUnion_Yes)
+treeBagConEnsemble = confusionMatrix(treeBagEnsemblePredAct, EnsemblyTest$LeftUnion_Yes)
+svmModelPredConEnsemble = confusionMatrix(svmEnsemblePredAct, EnsemblyTest$LeftUnion_Yes)
+treeModelPredConEnsemble = confusionMatrix(as.factor(treeEnsemblePredAct), EnsemblyTest$LeftUnion_Yes)
+
+
+rownamesdf = c("Logistic","Random Forest" ,"Neural","TreeBag", "SVM", "Decision Tree")
+
+conAccurEnsemble = as.data.frame(rbind(
+                glmConEnsemble$overall[1], 
+                rfModelConEnsemble$overall[1],
+                nnModelConEnsemble$overall[1], 
+                treeBagConEnsemble$overall[1],
+                svmModelPredConEnsemble$overall[1],
+                treeModelPredConEnsemble$overall[1]))
+
+AfterEnsembleDf = as.data.frame(cbind("Models" = rownamesdf,
+                                      "Accuracy Before Ensemble" = beforeEnsembleDf$Accuracy,
+                                      "Accuracy After Ensemble" = round(conAccurEnsemble*100,2)
+                                      
+                                      ))
+
+
+FinalAvg =  as.factor(ifelse(
+  
+                            (
+                           (glmEnsemblePred) +
+                           (rfEnsemblePred) + 
+                           (nnEnsemblePred )+
+                           (treeBagEnsemblePred ) +
+                           (svmEnsemblePred)+ 
+                           (treeEnsemblePred) 
+                            )/6 >= .5, 1, 0))
+
+FinalCon = confusionMatrix(FinalAvg,  EnsemblyTest$LeftUnion_Yes)
+
+FinalAvgOutput = as.data.frame(cbind("AVG Ensemble Model Output",
+                                       round(BeforeRetuneEnsemble$overall[1]*100,2),
+                                       round(FinalCon$overall[1]*100,2)))
+
+names(FinalAvgOutput) = colnames(AfterEnsembleDf)
+FInalDFEverything= rbind(AfterEnsembleDf,FinalAvgOutput)
+
+row.names(FInalDFEverything) = NULL
+
+colnames(FInalDFEverything) = c("Models",  "Accuracy Before Ensemble", "Accuracy After Ensemble" )
+
+
+FInalDFEverything # Final ouotput table
+
+```
+
+I think an ensemble model with the addition features I added will perform very quickly to the rest of the data. There might have to be some modifications to deal with the rest of the data set do to NULL values. However, I am really happy with a 89% accuracy. If my original file did not get deleted I would of had a lot more time to work on and improve this code. One thing I would of improved on is creating a loop to select the most appropriate weights for each model that provided the highest accuracy when I average them. Due to this final and my other class's final being deleted I had to cut that out. I would also create a better pipeline to incorporate new data for predictions better. I would of also loved to test a variety of different models. Additonally, I would like to optizime my paramters for all my models. I had to cut that out as well so my model still has a lot of room for imrpovements. 
