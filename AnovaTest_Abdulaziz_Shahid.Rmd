@@ -1,0 +1,102 @@
+---
+title: "Project5_Abdulaziz_Shahid"
+author: "Shahid Abdulaziz"
+date: "12/6/2020"
+output: word_document
+---
+
+# Problem 1
+
+**Read the dataset in Yield.csv Preview the document into R. Name the loaded data Yield. And use the head() function to show the first 6 rows.**
+
+
+
+```{r}
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(sqldf)
+library(gridExtra)
+
+Yield <- read_csv("C:/Grad School/DSCI 618/Week5/Yield.csv") #reading in my data
+
+
+head(Yield, 6) #looking at the first six rows
+
+
+str(Yield)
+
+Yield$Blocks = as.factor(Yield$Blocks)
+Yield$Temperature = as.factor(Yield$Temperature)
+
+
+str(Yield)
+```
+
+# Problem 2
+
+**Examine Data Graphically using strip charts, box plots, or other charts that can help you check if treatment and block factors affect the yield.**
+
+```{r, echo = TRUE}
+a = ggplot(Yield, aes(Blocks, Yield, fill = Temperature))+
+  geom_boxplot()
+
+b = ggplot(Yield, aes(Blocks, Yield, fill = as.factor(Pressure)))+
+  geom_boxplot()+
+  labs(fill = "Pressure")
+
+grid.arrange(a,b )
+```
+
+# Problem 3
+
+**Explain if the blocking factor is necessary for this experiment.**
+
+```{r, echo = TRUE}
+aov1 = aov(Yield ~., Yield) #anova with all variables
+aov2 = aov(Yield ~.-Blocks, Yield) #anova without blocker
+summary(aov1)
+summary(aov2)
+```
+Blocking factor is necessary for this experiment with a p-value of  0.000196. Important to note that without the blocks, pressure is not longer significant with a p-value of 0.186.
+
+# Problem 4
+
+**Conduct the analysis of variance and test hypotheses on the main effects. What conclusions can be drawn using significance level=0.05.**
+
+```{r, echo = TRUE}
+summary(aov1)
+```
+
+With a 95% confidence level we can reject the null hyoithesis because there is evidence to show all variable have a significant influence on Yield.
+
+
+
+# Problem 5
+
+**Construct an interaction plot.**
+```{r, echo = TRUE}
+
+
+YieldDay1 = sqldf("Select * from Yield where blocks = 'Day1'")
+YieldDay2 = sqldf("Select * from Yield where blocks = 'Day2'")
+
+with(YieldDay1 , interaction.plot(Pressure,Temperature,Yield,type="b",col=10:13))
+title(main = "Day One Blocker")
+
+with(YieldDay2 , interaction.plot(Pressure,Temperature,Yield,type="b",col=10:13))
+title(main = "Day Two Blocker")
+
+
+```
+
+# Problem 6
+
+**Test on the interaction between factors. What conclusions can be drawn using significance level=0.05?**
+```{r, echo = TRUE}
+aov3 = aov(Yield ~.^3, Yield) #adding interaction with my variables
+summary(aov3)
+
+```
+
+at a 95% confidence level, we fail to reject the null hypthosis because there is not enough evidence to support that there is an interaction amongst the factor variables.
