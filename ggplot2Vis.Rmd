@@ -1,0 +1,101 @@
+---
+title: "Homwork2_Abdulaziz_Shahid"
+author: "Shahid Abdulaziz"
+date: "1/19/2021"
+output: word_document
+---
+
+
+```{r}
+library(socviz)
+library(ggplot2)
+library(grid)
+
+
+```
+
+# Problem 1 
+The image below (Favorability on Taking Office) describes the favorability of seven US presidents upon taking office. Improve the above image by creating a simple bar chart.
+
+
+```{r}
+
+
+
+df = data.frame(colvalues = c(79,78,68,65,58,56,40),
+                presidents = c("Obama","Carter","Clinton","G.W Bush","Reagon","G.H.W Bush","Trump"),
+                party = c("Democrat","Democrat","Democrat","Republican","Republican","Republican","Republican" ))
+
+question1 =      ggplot(df, aes(reorder(as.factor(presidents),colvalues )))+
+                  geom_bar(aes( y = colvalues, fill = party ),stat = "identity")+
+                  labs(x ="Presidents",
+                       y= "Favorability",
+                       title = "Favorability on taking office")
+
+ggsave("Question1_Abdulaziz_Shahid.png",question1)
+question1 
+```
+
+# Problem 2
+For the gss_sm dataset discussed in the lecture notes
+
+## A 
+First, replicate the image below but have the color of the proportions vary by religion.
+
+
+```{r}
+
+
+question2a =    ggplot(data = gss_sm, aes(x = religion,fill = factor(..x..) )) +
+               geom_bar(aes(y = ..prop.. ,
+                       group = 1),
+                       stat = "count",
+                       show.legend =  FALSE)
+ggsave("Question2A_Abdulaziz_Shahid.png",question2a)
+question2a
+```
+
+## B
+
+After completing the replication.refer to the lecture notes where we plotted: ggplot(data = gss_sm, aes(x = bigregion)) + geom_bar(aes(fill = religion), position = "dodge"). Repeat this plot with proportions in the y-axis instead of count.
+
+```{r}
+
+
+question2b=    ggplot(data = gss_sm, aes(x = bigregion)) +
+                 geom_bar(aes(y=..prop..,fill = religion, group = religion ), position = "dodge") 
+
+ggsave("Question2B_Abdulaziz_Shahid.png",question2b)
+question2b
+```
+
+#Problem 3
+For the election dataset (this is part of the socviz package). This dataset contains State-level vote totals and shares for the 2016 US Presidential election. Replicate the image below.
+
+```{r}
+
+
+text_high <- textGrob("(Trump)", gp=gpar(fontsize=5, fontface="bold"))
+text_low <- textGrob("(Clinton)", gp=gpar(fontsize=5, fontface="bold"))
+
+
+question3 =    ggplot(election, aes(y = reorder(st,r_points) ,color = winner ))+
+               geom_vline(xintercept = 0, linetype = "solid")+
+               geom_point(aes(x =r_points),show.legend =  FALSE) +
+               facet_wrap(~census,scales = "free_y", nrow = 2) + 
+               annotation_custom(text_high,xmin=50,xmax=50,ymin= -2,ymax=-1.5) +
+               annotation_custom(text_low,xmin=-30,xmax=-30,ymin=-2,ymax=-1.5)+
+               scale_x_continuous(limits=c(-35,50),labels = abs, n.breaks = 10) +
+               coord_cartesian(clip = "off")+
+               scale_color_manual(values=c("#2E74C0", "#CB454A"))+
+               labs(
+                 x = "Point Margin",
+                 title = "US Presidential Election 2016, State-level results ",
+                 y = "")
+
+
+
+ggsave("Question3_Abdulaziz_Shahid.png", question3)
+question3
+
+```
